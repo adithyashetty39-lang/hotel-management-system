@@ -5,30 +5,32 @@ require('dotenv').config();
 // Initialize App
 const app = express();
 
-// Middleware
-app.use(cors()); 
-app.use(express.json()); 
-
 // Import Database connection
 const db = require('./config/db');
 
-// Import Routes (Declared only once!)
+// 1. IMPORT ALL ROUTES (Grouped cleanly together)
 const authRoutes = require('./routes/authRoutes');
 const roomRoutes = require('./routes/roomRoutes'); 
 const bookingRoutes = require('./routes/bookingRoutes'); 
-const restaurantRoutes = require('./routes/restaurantRoutes');// <-- New line
+const restaurantRoutes = require('./routes/restaurantRoutes');
 const hallRoutes = require('./routes/hallRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
-// Use Routes
+const analyticsRoutes = require('./routes/analyticsRoutes');
+const guestRoutes = require('./routes/guestRoutes');
+
+// 2. MIDDLEWARE
+app.use(cors()); 
+app.use(express.json());
+
+// 3. USE ROUTES (No duplicates!)
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes); 
-app.use('/api/bookings', bookingRoutes); // <-- New line
+app.use('/api/bookings', bookingRoutes); 
 app.use('/api/restaurant', restaurantRoutes);
 app.use('/api/halls', hallRoutes);   
 app.use('/api/invoices', invoiceRoutes); 
-// Use Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/rooms', roomRoutes); 
+app.use('/api/analytics', analyticsRoutes); 
+app.use('/api/guests', guestRoutes);
 
 // Basic Test Route
 app.get('/', (req, res) => {
