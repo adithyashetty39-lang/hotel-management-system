@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { buildAvailabilityClause } = require('./publicController');
+const { ensurePromoTables } = require('./promoController');
 
 const ensureGuestFeatureTables = async () => {
     await db.execute(`
@@ -440,7 +441,7 @@ const rebookGuestBooking = async (req, res) => {
 };
 
 const createGuestBooking = async (req, res) => {
-    const { room_id, check_in, check_out } = req.body;
+    const { room_id, check_in, check_out, promo_code } = req.body;
 
     const dateError = validateStayDates(check_in, check_out);
     if (dateError) return res.status(400).json({ error: dateError });
@@ -449,6 +450,7 @@ const createGuestBooking = async (req, res) => {
 
     try {
         await connection.beginTransaction();
+        await ensurePromoTables();
 
         const [rooms] = await connection.execute(
             `SELECT room_id, status
@@ -476,12 +478,57 @@ const createGuestBooking = async (req, res) => {
             throw new Error('Room is already booked for the selected dates.');
         }
 
+        let appliedPromo = null;
+        const promoCode = promo_code ? String(promo_code).trim().toUpperCase() : '';
+
+        if (promoCode) {
+            const [promos] = await connection.execute(
+                `SELECT promo_code, title, discount_type, discount_value, max_uses, used_count
+                 FROM promo_codes
+                 WHERE promo_code = ?
+                   AND is_active = 1
+                   AND (starts_at IS NULL OR starts_at <= CURDATE())
+                   AND (ends_at IS NULL OR ends_at >= CURDATE())
+                 FOR UPDATE`,
+                [promoCode]
+            );
+
+            if (promos.length === 0) {
+                throw new Error('Promo code is invalid or expired.');
+            }
+
+            const promo = promos[0];
+            if (promo.max_uses !== null && Number(promo.used_count) >= Number(promo.max_uses)) {
+                throw new Error('Promo code usage limit has been reached.');
+            }
+
+            await connection.execute(
+                `UPDATE promo_codes SET used_count = used_count + 1 WHERE promo_code = ?`,
+                [promoCode]
+            );
+
+            appliedPromo = {
+                promo_code: promo.promo_code,
+                title: promo.title,
+                discount_type: promo.discount_type,
+                discount_value: Number(promo.discount_value)
+            };
+        }
+
         const status = getStayStatus(check_in);
         const [bookingResult] = await connection.execute(
             `INSERT INTO bookings (guest_id, room_id, check_in, check_out, status)
              VALUES (?, ?, ?, ?, ?)`,
             [req.user.id, room_id, check_in, check_out, status]
         );
+
+        if (appliedPromo) {
+            await connection.execute(
+                `INSERT INTO booking_promotions (booking_id, promo_code, discount_type, discount_value)
+                 VALUES (?, ?, ?, ?)`,
+                [bookingResult.insertId, appliedPromo.promo_code, appliedPromo.discount_type, appliedPromo.discount_value]
+            );
+        }
 
         if (status === 'Active') {
             await connection.execute(
@@ -494,7 +541,8 @@ const createGuestBooking = async (req, res) => {
 
         res.status(201).json({
             message: 'Room booked successfully.',
-            booking_id: bookingResult.insertId
+            booking_id: bookingResult.insertId,
+            promo: appliedPromo
         });
     } catch (error) {
         await connection.rollback();

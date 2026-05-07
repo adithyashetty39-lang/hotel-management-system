@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // Initialize App
 const app = express();
@@ -20,6 +21,7 @@ const guestRoutes = require('./routes/guestRoutes');
 const guestAuthRoutes = require('./routes/guestAuthRoutes');
 const userRoutes = require('./routes/userRoutes');
 const publicRoutes = require('./routes/publicRoutes');
+const promoRoutes = require('./routes/promoRoutes');
 
 // 2. MIDDLEWARE
 app.use(cors()); 
@@ -37,6 +39,7 @@ app.use('/api/guests', guestRoutes);
 app.use('/api/guest-auth', guestAuthRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/promos', promoRoutes);
 
 // Basic Test Route
 app.get('/', (req, res) => {

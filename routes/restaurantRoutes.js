@@ -1,6 +1,20 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/db'); 
+const { verifyToken } = require('../middleware/authMiddleware');
+const {
+    listMenuItems,
+    listAllMenuItemsAdmin,
+    upsertMenuItem,
+    deleteMenuItem,
+    updateDiningShowcase
+} = require('../controllers/diningController');
+
+const requireAdmin = (req, res, next) => {
+    const role = String(req.user?.role || '').toLowerCase();
+    if (role !== 'admin') return res.status(403).json({ error: 'Admin access only.' });
+    next();
+};
 
 // --- POST /api/restaurant/order: Process a POS Order ---
 router.post('/order', async (req, res) => {
@@ -60,5 +74,18 @@ router.get('/tab/:room_id', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch restaurant tab.' });
     }
 });
+
+// --- MENU ENDPOINTS FOR POS / PREVIEW ---
+router.get('/menu', listMenuItems);
+
+router.get('/menu/admin', verifyToken, requireAdmin, listAllMenuItemsAdmin);
+router.post('/menu/admin', verifyToken, requireAdmin, upsertMenuItem);
+router.put('/menu/admin/:id', verifyToken, requireAdmin, (req, res, next) => {
+    req.body = { ...req.body, menu_item_id: Number(req.params.id) };
+    next();
+}, upsertMenuItem);
+router.delete('/menu/admin/:id', verifyToken, requireAdmin, deleteMenuItem);
+
+router.put('/highlights', verifyToken, requireAdmin, updateDiningShowcase);
 
 module.exports = router;
