@@ -17,6 +17,9 @@ const hallRoutes = require('./routes/hallRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const guestRoutes = require('./routes/guestRoutes');
+const guestAuthRoutes = require('./routes/guestAuthRoutes');
+const userRoutes = require('./routes/userRoutes');
+const publicRoutes = require('./routes/publicRoutes');
 
 // 2. MIDDLEWARE
 app.use(cors()); 
@@ -31,6 +34,9 @@ app.use('/api/halls', hallRoutes);
 app.use('/api/invoices', invoiceRoutes); 
 app.use('/api/analytics', analyticsRoutes); 
 app.use('/api/guests', guestRoutes);
+app.use('/api/guest-auth', guestAuthRoutes);
+app.use('/api/user', userRoutes);
+app.use('/api/public', publicRoutes);
 
 // Basic Test Route
 app.get('/', (req, res) => {
