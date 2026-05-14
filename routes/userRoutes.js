@@ -3,6 +3,8 @@ const router = express.Router();
 const { verifyToken } = require('../middleware/authMiddleware');
 const {
     getGuestProfile,
+    updateGuestProfile,
+    changeGuestPassword,
     getGuestMembership,
     getAvailableRooms,
     getGuestBookings,
@@ -15,6 +17,7 @@ const {
     rebookGuestBooking,
     createGuestBooking
 } = require('../controllers/userController');
+const { getGuestMenu, placeRoomServiceOrder, getGuestOrders } = require('../controllers/roomServiceController');
 
 const verifyGuest = (req, res, next) => {
     if (req.user?.role !== 'Guest' || req.user?.type !== 'guest') {
@@ -28,6 +31,8 @@ router.use(verifyToken);
 router.use(verifyGuest);
 
 router.get('/profile', getGuestProfile);
+router.put('/profile', updateGuestProfile);
+router.put('/password', changeGuestPassword);
 router.get('/membership', getGuestMembership);
 router.get('/rooms/available', getAvailableRooms);
 router.get('/bookings', getGuestBookings);
@@ -39,5 +44,10 @@ router.get('/preferences', getGuestPreferences);
 router.put('/preferences', updateGuestPreferences);
 router.post('/saved-rooms/toggle', toggleSavedRoom);
 router.post('/saved-offers/toggle', toggleSavedOffer);
+
+// Room Service
+router.get('/menu', getGuestMenu);
+router.post('/room-service', placeRoomServiceOrder);
+router.get('/room-service/orders', getGuestOrders);
 
 module.exports = router;

@@ -54,5 +54,43 @@ const loginStaff = async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 };
+// 3. Change Staff Password
+const changeStaffPassword = async (req, res) => {
+    const { current_password, new_password } = req.body;
 
-module.exports = { registerStaff, loginStaff };
+    if (!current_password || !new_password) {
+        return res.status(400).json({ error: 'Current password and new password are required.' });
+    }
+
+    if (new_password.length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters.' });
+    }
+
+    try {
+        const [users] = await db.execute(
+            'SELECT password_hash FROM users WHERE user_id = ?',
+            [req.user.id]
+        );
+
+        if (users.length === 0) {
+            return res.status(404).json({ error: 'User not found.' });
+        }
+
+        const isValid = await bcrypt.compare(current_password, users[0].password_hash);
+        if (!isValid) {
+            return res.status(400).json({ error: 'Current password is incorrect.' });
+        }
+
+        const hashedPassword = await bcrypt.hash(new_password, 10);
+        await db.execute(
+            'UPDATE users SET password_hash = ? WHERE user_id = ?',
+            [hashedPassword, req.user.id]
+        );
+
+        res.json({ message: 'Password changed successfully.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+module.exports = { registerStaff, loginStaff, changeStaffPassword };

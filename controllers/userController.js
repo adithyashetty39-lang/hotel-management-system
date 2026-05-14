@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const bcrypt = require('bcrypt');
 const { buildAvailabilityClause } = require('./publicController');
 const { ensurePromoTables } = require('./promoController');
 
@@ -516,6 +517,18 @@ const createGuestBooking = async (req, res) => {
         }
 
         const status = getStayStatus(check_in);
+
+        // Check for collisions before booking
+        const [overlapCheck] = await connection.execute(
+            `SELECT booking_id FROM bookings
+             WHERE room_id = ? AND status IN ('Active', 'Pending', 'Confirmed')
+             AND NOT (check_out <= ? OR check_in >= ?)`,
+            [room_id, check_in, check_out]
+        );
+        if (overlapCheck.length > 0) {
+            throw new Error('This room is already booked for these dates. Please try another room or date.');
+        }
+
         const [bookingResult] = await connection.execute(
             `INSERT INTO bookings (guest_id, room_id, check_in, check_out, status)
              VALUES (?, ?, ?, ?, ?)`,
@@ -552,8 +565,67 @@ const createGuestBooking = async (req, res) => {
     }
 };
 
+const updateGuestProfile = async (req, res) => {
+    const { name, phone } = req.body;
+
+    if (!name || !phone) {
+        return res.status(400).json({ error: 'Name and phone are required.' });
+    }
+
+    try {
+        await db.execute(
+            'UPDATE guests SET name = ?, phone = ? WHERE guest_id = ?',
+            [String(name).trim(), String(phone).trim(), req.user.id]
+        );
+
+        res.json({ message: 'Profile updated successfully.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+const changeGuestPassword = async (req, res) => {
+    const { current_password, new_password } = req.body;
+
+    if (!current_password || !new_password) {
+        return res.status(400).json({ error: 'Current password and new password are required.' });
+    }
+
+    if (new_password.length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters.' });
+    }
+
+    try {
+        const [guests] = await db.execute(
+            'SELECT password_hash FROM guests WHERE guest_id = ?',
+            [req.user.id]
+        );
+
+        if (guests.length === 0 || !guests[0].password_hash) {
+            return res.status(404).json({ error: 'Account not found.' });
+        }
+
+        const isValid = await bcrypt.compare(current_password, guests[0].password_hash);
+        if (!isValid) {
+            return res.status(400).json({ error: 'Current password is incorrect.' });
+        }
+
+        const hashedPassword = await bcrypt.hash(new_password, 10);
+        await db.execute(
+            'UPDATE guests SET password_hash = ? WHERE guest_id = ?',
+            [hashedPassword, req.user.id]
+        );
+
+        res.json({ message: 'Password changed successfully.' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
 module.exports = {
     getGuestProfile,
+    updateGuestProfile,
+    changeGuestPassword,
     getGuestMembership,
     getAvailableRooms,
     getGuestBookings,

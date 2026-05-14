@@ -9,7 +9,17 @@ router.post('/', async (req, res) => {
     try {
         const [roomCheck] = await db.query('SELECT status FROM rooms WHERE room_id = ?', [room_id]);
         if (roomCheck.length === 0 || (roomCheck[0].status !== 'Available' && roomCheck[0].status !== 'AVAILABLE')) {
-            return res.status(400).json({ error: 'Room is no longer available.' });
+            return res.status(400).json({ error: 'Room is currently not available.' });
+        }
+
+        const [overlapCheck] = await db.query(
+            `SELECT booking_id FROM bookings
+             WHERE room_id = ? AND status IN ('Active', 'Pending', 'Confirmed')
+             AND NOT (check_out <= ? OR check_in >= ?)`,
+            [room_id, check_in, check_out]
+        );
+        if (overlapCheck.length > 0) {
+            return res.status(400).json({ error: 'Room is already reserved for these dates.' });
         }
 
         const [guestResult] = await db.query(
