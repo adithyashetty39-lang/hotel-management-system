@@ -54,6 +54,8 @@ router.post('/checkout/:room_id', async (req, res) => {
             FROM bookings b 
             JOIN rooms r ON b.room_id = r.room_id 
             WHERE b.room_id = ? AND b.status = "Active"
+            ORDER BY b.booking_id DESC
+            LIMIT 1
         `, [room_id]);
 
         if (activeBooking.length === 0) {
@@ -69,12 +71,29 @@ router.post('/checkout/:room_id', async (req, res) => {
         );
         const foodTotal = Number(foodData[0].food_total);
 
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS booking_addons (
+                booking_addon_id INT AUTO_INCREMENT PRIMARY KEY,
+                booking_id INT NOT NULL,
+                addon_code VARCHAR(80) NOT NULL,
+                addon_title VARCHAR(160) NOT NULL,
+                addon_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                KEY idx_booking_addons_booking (booking_id)
+            )
+        `);
+        const [addonData] = await db.query(
+            'SELECT COALESCE(SUM(addon_price), 0) as addon_total FROM booking_addons WHERE booking_id = ?',
+            [booking.booking_id]
+        );
+        const addonTotal = Number(addonData[0].addon_total);
+
         // 3. The Math Engine
         const nights = Math.max(1, Math.ceil((new Date(booking.check_out) - new Date(booking.check_in)) / (1000 * 60 * 60 * 24)));
         const roomSubtotal = nights * booking.price_per_night;
         const roomTax = roomSubtotal * 0.12; 
         const foodTax = foodTotal * 0.05;   
-        const grandTotal = roomSubtotal + roomTax + foodTotal + foodTax;
+        const grandTotal = roomSubtotal + roomTax + foodTotal + foodTax + addonTotal;
 
         // 4. Save to YOUR existing Invoices Table!
         const [invoiceResult] = await db.query(`
@@ -93,7 +112,7 @@ router.post('/checkout/:room_id', async (req, res) => {
         // Return the final numbers to the frontend
         res.status(200).json({ 
             message: 'Checkout successful!',
-            invoiceData: { invoiceNo, roomSubtotal, foodTotal, taxes: roomTax + foodTax, grandTotal }
+            invoiceData: { invoiceNo, roomSubtotal, foodTotal, addonTotal, taxes: roomTax + foodTax, grandTotal }
         });
 
     } catch (error) {

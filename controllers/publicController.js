@@ -6,10 +6,10 @@ const fallbackByType = {
         capacity: 3,
         rating: 4.9,
         popular: true,
-        image_url: 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?q=80&w=1400&auto=format&fit=crop',
+        image_url: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=1400&auto=format&fit=crop',
         gallery: [
-            'https://images.unsplash.com/photo-1618773928121-c32242e63f39?q=80&w=1400&auto=format&fit=crop',
             'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?q=80&w=1400&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1618773928121-c32242e63f39?q=80&w=1400&auto=format&fit=crop',
             'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?q=80&w=1400&auto=format&fit=crop'
         ],
         description: 'A calm private suite with garden-facing lounge space, warm textures, and quiet evening service.',
@@ -22,9 +22,9 @@ const fallbackByType = {
         capacity: 2,
         rating: 4.8,
         popular: false,
-        image_url: 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?q=80&w=1400&auto=format&fit=crop',
+        image_url: 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?q=80&w=1400&auto=format&fit=crop',
         gallery: [
-            'https://images.unsplash.com/photo-1566665797739-1674de7a421a?q=80&w=1400&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1618773928121-c32242e63f39?q=80&w=1400&auto=format&fit=crop',
             'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?q=80&w=1400&auto=format&fit=crop',
             'https://images.unsplash.com/photo-1590490360182-c33d57733427?q=80&w=1400&auto=format&fit=crop'
         ],
@@ -38,9 +38,9 @@ const fallbackByType = {
         capacity: 2,
         rating: 4.8,
         popular: false,
-        image_url: 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?q=80&w=1400&auto=format&fit=crop',
+        image_url: 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?q=80&w=1400&auto=format&fit=crop',
         gallery: [
-            'https://images.unsplash.com/photo-1566665797739-1674de7a421a?q=80&w=1400&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1618773928121-c32242e63f39?q=80&w=1400&auto=format&fit=crop',
             'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?q=80&w=1400&auto=format&fit=crop',
             'https://images.unsplash.com/photo-1590490360182-c33d57733427?q=80&w=1400&auto=format&fit=crop'
         ],
@@ -54,10 +54,10 @@ const fallbackByType = {
         capacity: 5,
         rating: 4.9,
         popular: false,
-        image_url: 'https://images.unsplash.com/photo-1590490359683-658d34c8f11f?q=80&w=1400&auto=format&fit=crop',
+        image_url: 'https://images.unsplash.com/photo-1598928636135-d146006ff4be?q=80&w=1400&auto=format&fit=crop',
         gallery: [
-            'https://images.unsplash.com/photo-1590490359683-658d34c8f11f?q=80&w=1400&auto=format&fit=crop',
             'https://images.unsplash.com/photo-1598928636135-d146006ff4be?q=80&w=1400&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1590490359683-658d34c8f11f?q=80&w=1400&auto=format&fit=crop',
             'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=1400&auto=format&fit=crop'
         ],
         description: 'A spacious residence with connected sleeping zones, generous seating, and family-friendly service touches.',
@@ -70,10 +70,10 @@ const fallbackByType = {
         capacity: 2,
         rating: 4.7,
         popular: false,
-        image_url: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?q=80&w=1400&auto=format&fit=crop',
+        image_url: 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?q=80&w=1400&auto=format&fit=crop',
         gallery: [
-            'https://images.unsplash.com/photo-1590490360182-c33d57733427?q=80&w=1400&auto=format&fit=crop',
             'https://images.unsplash.com/photo-1566665797739-1674de7a421a?q=80&w=1400&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1590490360182-c33d57733427?q=80&w=1400&auto=format&fit=crop',
             'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?q=80&w=1400&auto=format&fit=crop'
         ],
         description: 'A calm and efficient room for short stays, business travel, and quiet city breaks.',

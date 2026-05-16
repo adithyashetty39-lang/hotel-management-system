@@ -32,13 +32,48 @@ const ensureGuestFeatureTables = async () => {
             PRIMARY KEY (guest_id, offer_code)
         )
     `);
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS booking_addons (
+            booking_addon_id INT AUTO_INCREMENT PRIMARY KEY,
+            booking_id INT NOT NULL,
+            addon_code VARCHAR(80) NOT NULL,
+            addon_title VARCHAR(160) NOT NULL,
+            addon_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            KEY idx_booking_addons_booking (booking_id)
+        )
+    `);
+};
+
+const addonCatalog = {
+    airport: { title: 'Airport Transfer', price: 1800 },
+    breakfast: { title: 'Chef Breakfast', price: 1200 },
+    spa: { title: 'Spa Welcome Ritual', price: 2500 }
+};
+
+const normalizeBookingAddons = (addons) => {
+    if (!Array.isArray(addons)) return [];
+
+    const seen = new Set();
+    return addons
+        .map((addon) => String(addon).trim().toLowerCase())
+        .filter((addon) => {
+            if (!addonCatalog[addon] || seen.has(addon)) return false;
+            seen.add(addon);
+            return true;
+        })
+        .map((addon) => ({
+            code: addon,
+            ...addonCatalog[addon]
+        }));
 };
 
 const getTier = (points) => {
-    if (points >= 10000) return { name: 'Platinum', next: null, progress: 100 };
-    if (points >= 5000) return { name: 'Gold', next: 'Platinum', progress: Math.round((points / 10000) * 100) };
-    if (points >= 2000) return { name: 'Silver', next: 'Gold', progress: Math.round((points / 5000) * 100) };
-    return { name: 'Bronze', next: 'Silver', progress: Math.round((points / 2000) * 100) };
+    if (points >= 1500) return { name: 'Platinum', next: null, progress: 100 };
+    if (points >= 750) return { name: 'Gold', next: 'Platinum', progress: Math.round((points / 1500) * 100) };
+    if (points >= 250) return { name: 'Silver', next: 'Gold', progress: Math.round((points / 750) * 100) };
+    return { name: 'Bronze', next: 'Silver', progress: Math.round((points / 250) * 100) };
 };
 
 const getStayStatus = (checkInDate) => {
@@ -149,6 +184,8 @@ const getAvailableRooms = async (req, res) => {
 
 const getGuestBookings = async (req, res) => {
     try {
+        await ensureGuestFeatureTables();
+
         const [bookings] = await db.execute(
             `SELECT
                 b.booking_id,
@@ -160,10 +197,13 @@ const getGuestBookings = async (req, res) => {
                 b.check_out,
                 b.status,
                 GREATEST(1, DATEDIFF(b.check_out, b.check_in)) AS nights,
-                GREATEST(1, DATEDIFF(b.check_out, b.check_in)) * r.price_per_night AS estimated_total
+                GREATEST(1, DATEDIFF(b.check_out, b.check_in)) * r.price_per_night
+                    + COALESCE(SUM(ba.addon_price), 0) AS estimated_total
              FROM bookings b
              JOIN rooms r ON b.room_id = r.room_id
+             LEFT JOIN booking_addons ba ON ba.booking_id = b.booking_id
              WHERE b.guest_id = ?
+             GROUP BY b.booking_id, b.room_id, r.room_number, r.type, r.price_per_night, b.check_in, b.check_out, b.status
              ORDER BY b.check_in DESC, b.booking_id DESC`,
             [req.user.id]
         );
@@ -183,6 +223,14 @@ const getGuestInvoices = async (req, res) => {
                 CONCAT('INV-', LPAD(i.invoice_id, 5, '0')) AS invoice_no,
                 i.room_total,
                 i.restaurant_total,
+                COALESCE(SUM(ba.addon_price), 0) AS addon_total,
+                GROUP_CONCAT(
+                    CASE
+                        WHEN ba.booking_addon_id IS NULL THEN NULL
+                        ELSE CONCAT(ba.addon_title, '::', ba.addon_price)
+                    END
+                    SEPARATOR '||'
+                ) AS addon_items,
                 i.grand_total,
                 i.payment_status,
                 b.check_in,
@@ -192,7 +240,19 @@ const getGuestInvoices = async (req, res) => {
              FROM invoices i
              JOIN bookings b ON i.booking_id = b.booking_id
              JOIN rooms r ON b.room_id = r.room_id
+             LEFT JOIN booking_addons ba ON ba.booking_id = i.booking_id
              WHERE b.guest_id = ?
+             GROUP BY
+                i.invoice_id,
+                i.booking_id,
+                i.room_total,
+                i.restaurant_total,
+                i.grand_total,
+                i.payment_status,
+                b.check_in,
+                b.check_out,
+                r.room_number,
+                r.type
              ORDER BY i.invoice_id DESC`,
             [req.user.id]
         );
@@ -442,16 +502,19 @@ const rebookGuestBooking = async (req, res) => {
 };
 
 const createGuestBooking = async (req, res) => {
-    const { room_id, check_in, check_out, promo_code } = req.body;
+    const { room_id, check_in, check_out, promo_code, addons } = req.body;
 
     const dateError = validateStayDates(check_in, check_out);
     if (dateError) return res.status(400).json({ error: dateError });
+
+    const selectedAddons = normalizeBookingAddons(addons);
 
     const connection = await db.getConnection();
 
     try {
         await connection.beginTransaction();
         await ensurePromoTables();
+        await ensureGuestFeatureTables();
 
         const [rooms] = await connection.execute(
             `SELECT room_id, status
@@ -535,6 +598,14 @@ const createGuestBooking = async (req, res) => {
             [req.user.id, room_id, check_in, check_out, status]
         );
 
+        for (const addon of selectedAddons) {
+            await connection.execute(
+                `INSERT INTO booking_addons (booking_id, addon_code, addon_title, addon_price)
+                 VALUES (?, ?, ?, ?)`,
+                [bookingResult.insertId, addon.code, addon.title, addon.price]
+            );
+        }
+
         if (appliedPromo) {
             await connection.execute(
                 `INSERT INTO booking_promotions (booking_id, promo_code, discount_type, discount_value)
@@ -555,7 +626,8 @@ const createGuestBooking = async (req, res) => {
         res.status(201).json({
             message: 'Room booked successfully.',
             booking_id: bookingResult.insertId,
-            promo: appliedPromo
+            promo: appliedPromo,
+            addons: selectedAddons
         });
     } catch (error) {
         await connection.rollback();
