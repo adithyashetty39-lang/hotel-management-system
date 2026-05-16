@@ -39,6 +39,7 @@ const run = async () => {
     )
   `);
 
+  // Fix: rename CudBud -> GudBud and update its price and details
   await db.execute(`
     UPDATE menu_items
     SET name = 'GudBud',
@@ -52,6 +53,7 @@ const run = async () => {
     WHERE LOWER(name) IN ('cudbud', 'gudbud')
   `);
 
+  // Fix: update Butter Chicken price to 620
   await db.execute(`
     UPDATE menu_items
     SET price = 620,
@@ -62,6 +64,7 @@ const run = async () => {
     WHERE name = 'Butter Chicken'
   `);
 
+  // Add new items if they don't already exist
   for (const [name, category, price, description, isBestseller, isChefPick, isDessertWeek] of menuItems) {
     await db.execute(
       `INSERT INTO menu_items
