@@ -30,7 +30,9 @@ router.post('/order', async (req, res) => {
                 `SELECT b.booking_id 
                  FROM bookings b 
                  JOIN rooms r ON b.room_id = r.room_id 
-                 WHERE r.room_number = ? AND b.status = 'Active'`,
+                 WHERE r.room_number = ? AND b.status = 'Active'
+                 ORDER BY b.booking_id DESC
+                 LIMIT 1`,
                 [selectedRoom]
             );
 

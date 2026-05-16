@@ -34,14 +34,32 @@ router.get('/preview/:booking_id', async (req, res) => {
         );
         const hallTotal = hallBookings.reduce((sum, h) => sum + Number(h.flat_fee), 0);
 
-        // 4. Calculations
+        // 4. Fetch booking add-ons selected in the guest portal.
+        await db.query(`
+            CREATE TABLE IF NOT EXISTS booking_addons (
+                booking_addon_id INT AUTO_INCREMENT PRIMARY KEY,
+                booking_id INT NOT NULL,
+                addon_code VARCHAR(80) NOT NULL,
+                addon_title VARCHAR(160) NOT NULL,
+                addon_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                KEY idx_booking_addons_booking (booking_id)
+            )
+        `);
+        const [addons] = await db.query(
+            `SELECT addon_code, addon_title, addon_price FROM booking_addons WHERE booking_id = ?`,
+            [booking_id]
+        );
+        const addonTotal = addons.reduce((sum, addon) => sum + Number(addon.addon_price), 0);
+
+        // 5. Calculations
         const nights = Math.max(1, Math.ceil((new Date(booking.check_out) - new Date(booking.check_in)) / (1000 * 60 * 60 * 24)));
         const roomSubtotal = nights * booking.price_per_night;
         const roomTax = roomSubtotal * 0.12;
         const foodTax = foodTotal * 0.05;
-        const grandTotal = roomSubtotal + roomTax + foodTotal + foodTax + hallTotal;
+        const grandTotal = roomSubtotal + roomTax + foodTotal + foodTax + hallTotal + addonTotal;
 
-        // 5. Return full preview (no data modified)
+        // 6. Return full preview (no data modified)
         res.json({
             booking: {
                 booking_id: booking.booking_id,
@@ -68,6 +86,8 @@ router.get('/preview/:booking_id', async (req, res) => {
                 food_tax: foodTax,
                 hall_bookings: hallBookings,
                 hall_total: hallTotal,
+                addons,
+                addon_total: addonTotal,
                 grand_total: grandTotal
             }
         });
@@ -100,14 +120,21 @@ router.get('/generate/:booking_id', async (req, res) => {
         );
         const foodTotal = Number(foodData[0].food_total);
 
-        // 3. Perform Calculations
+        // 3. Fetch Add-on Charges
+        const [addons] = await db.query(
+            `SELECT addon_code, addon_title, addon_price FROM booking_addons WHERE booking_id = ?`,
+            [booking_id]
+        ).catch(() => [[]]);
+        const addonTotal = (addons || []).reduce((sum, addon) => sum + Number(addon.addon_price), 0);
+
+        // 4. Perform Calculations
         const nights = Math.max(1, Math.ceil((new Date(booking.check_out) - new Date(booking.check_in)) / (1000 * 60 * 60 * 24)));
         const roomSubtotal = nights * booking.price_per_night;
         const roomTax = roomSubtotal * 0.12; // 12% GST on Room
         const foodTax = foodTotal * 0.05;   // 5% GST on Food
-        const grandTotal = roomSubtotal + roomTax + foodTotal + foodTax;
+        const grandTotal = roomSubtotal + roomTax + foodTotal + foodTax + addonTotal;
 
-        // 4. Return the "Compiled" Data
+        // 5. Return the "Compiled" Data
         res.json({
             invoice_meta: {
                 invoice_no: `INV-${Date.now().toString().slice(-6)}`,
@@ -117,6 +144,8 @@ router.get('/generate/:booking_id', async (req, res) => {
             breakdown: {
                 room_charges: roomSubtotal,
                 food_charges: foodTotal,
+                addon_charges: addonTotal,
+                addons: addons || [],
                 taxes: roomTax + foodTax,
                 grand_total: grandTotal
             }

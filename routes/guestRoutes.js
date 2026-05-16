@@ -9,6 +9,7 @@ router.get('/', async (req, res) => {
         const query = `
             SELECT 
                 b.booking_id,
+                b.room_id,
                 g.name AS guest_name,
                 g.email,
                 g.phone,
